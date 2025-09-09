@@ -11,13 +11,17 @@ import java.util.ArrayList;
 @RequestMapping("/products")
 public class ProductController {
     ArrayList<Product> products = new ArrayList<>(List.of(
-                new Product(1, "shitty shit", 69), new Product(2, "shittier shit", 42)
+                new Product(1, "Shitty shit", 69), new Product(2, "Shittier shit", 42)
     ));
-    //ArrayList<Product> products;
-
 
     @GetMapping
     public ArrayList<Product> getProducts() {
         return products;
+    }
+
+    @PostMapping
+    public String createProducts(@RequestBody Product product) {
+        System.out.println("Product: " + product.getName());
+        return "Succcess\n";
     }
 }
