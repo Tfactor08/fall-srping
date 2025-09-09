@@ -1,11 +1,12 @@
 package com.torvaldsinc.linushostings.cotroller;
 
-import com.torvaldsinc.linushostings.model.*;
-
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 import java.util.ArrayList;
+
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+
+import com.torvaldsinc.linushostings.model.*;
 
 @RestController
 @RequestMapping("/products")
@@ -20,8 +21,9 @@ public class ProductController {
     }
 
     @PostMapping
-    public String createProducts(@RequestBody Product product) {
+    public ResponseEntity<Product> createProducts(@RequestBody Product product) {
+        products.add(product);
         System.out.println("Product: " + product.getName());
-        return "Succcess\n";
+        return ResponseEntity.status(HttpStatus.CREATED).body(product);
     }
 }
