@@ -2,10 +2,13 @@ package com.torvaldsinc.linus_hostings.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.torvaldsinc.linus_hostings.model.Product;
 import com.torvaldsinc.linus_hostings.repository.ProductRepository;
+import com.torvaldsinc.linus_hostings.specification.ProductSpecification;
 
 import jakarta.transaction.Transactional;
 
@@ -53,11 +56,7 @@ public class ProductService {
         return false;
     }
 
-    public List<Product> getByFilter(String title) {
-        if (title != null) {
-            return productRepo.findByNameIgnoreCase(title);
-        }
-
-        return productRepo.findAll();
+    public Page<Product> getByFilter(String name, Integer min, Integer max, Pageable pageable) {
+        return productRepo.findAll(ProductSpecification.filter(name, min, max), pageable);
     }
 }
