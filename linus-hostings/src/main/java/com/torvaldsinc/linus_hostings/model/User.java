@@ -11,6 +11,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+enum Role {
+    ROLE_USER,
+    ROLE_ADMIN
+}
+
 @Entity
 @Table(name = "users")
 @Data
@@ -23,6 +28,10 @@ public class User {
 
     @Column(unique = true, nullable = false)
     private String email;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private Role role;
 
     @Column(nullable = false)
     private String password;
