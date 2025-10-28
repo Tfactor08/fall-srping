@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.torvaldsinc.linus_hostings.model.Role;
 import com.torvaldsinc.linus_hostings.model.User;
 import com.torvaldsinc.linus_hostings.repository.UserRepository;
 import com.torvaldsinc.linus_hostings.security.JwtUtil;
@@ -36,7 +37,6 @@ public class AuthenticationController {
         this.jwtUtils = jwtUtils;
     }
 
-
     @PostMapping("/signin")
     public String authenticateUser(@RequestBody User user) {
         Authentication authentication = authenticationManager.authenticate(
@@ -56,16 +56,12 @@ public class AuthenticationController {
             return "User already exists!";
         }
 
-        final User newUser = new User(
-                null,
-                user.getEmail(),
-                null,
-                encoder.encode(user.getPassword(),
-                null,
-                null,
-                null,
-                null)
-        );
+        final User newUser = User.builder()
+                .password(encoder.encode(user.getPassword()))
+                .email(user.getEmail())
+                .role(Role.ROLE_USER)
+                .fullName(user.getFullName())
+                .build();
         userRepository.save(newUser);
         return "User registered successfully!";
     }
