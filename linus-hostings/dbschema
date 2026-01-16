@@ -1,0 +1,148 @@
+[User] (Сущность)
+├── id: BIGINT (PK, уникальный идентификатор)
+├── email: STRING (обязательный, уникальный)
+├── password: STRING (обязательный)
+├── fullName: STRING
+├── createdAt: TIMESTAMP
+├── isActive: BOOLEAN
+├── orders: List<Order> (1 ко многим)
+└── servers: List<Server> (1 ко многим)
+
+[ServicePlan] (Сущность)
+├── id: BIGINT (PK)
+├── name: STRING (обязательный, уникальный)
+├── description: STRING
+├── cpuCores: INTEGER
+├── ramMB: INTEGER
+├── storageGB: INTEGER
+├── bandwidthGB: INTEGER
+├── pricePerMonth: DECIMAL (обязательный)
+├── isAvailable: BOOLEAN
+├── orders: List<Order> (1 ко многим)
+└── servers: List<Server> (1 ко многим)
+
+[Order] (Сущность)
+├── id: BIGINT (PK)
+├── priceSnapshot: DECIMAL
+├── status: ENUM('PENDING', 'ACTIVE', 'SUSPENDED', 'TERMINATED')
+├── createdAt: TIMESTAMP
+├── user_id: BIGINT (FK → User.id, обязательный)
+└── servicePlan_id: BIGINT (FK → ServicePlan.id, обязательный)
+
+[Server] (Сущность)
+├── id: BIGINT (PK)
+├── hostname: STRING (обязательный, уникальный)
+├── ipAddress: STRING
+├── osImage: STRING
+├── status: ENUM('PENDING', 'ACTIVE', 'SUSPENDED', 'TERMINATED')
+├── user_id: BIGINT (FK → User.id, обязательный)
+└── servicePlan_id: BIGINT (FK → ServicePlan.id, обязательный)
+
+Связи:
+1. User (1) — (много) Order
+2. User (1) — (много) Server
+3. ServicePlan (1) — (много) Order
+4. ServicePlan (1) — (много) Server
+
+-- Таблица users
+CREATE TABLE users (
+    id BIGSERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT true,
+    
+    -- Индексы
+    CONSTRAINT idx_users_email UNIQUE (email)
+);
+
+-- Таблица service_plans
+CREATE TABLE service_plans (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    cpu_cores INTEGER,
+    ram_mb INTEGER,
+    storage_gb INTEGER,
+    bandwidth_gb INTEGER,
+    price_per_month DECIMAL(10,2) NOT NULL,
+    is_available BOOLEAN DEFAULT true,
+    
+    -- Индексы
+    CONSTRAINT idx_service_plans_name UNIQUE (name),
+    INDEX idx_service_plans_price (price_per_month)
+);
+
+-- Таблица orders
+CREATE TABLE orders (
+    id BIGSERIAL PRIMARY KEY,
+    price_snapshot DECIMAL(10,2),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN ('PENDING', 'ACTIVE', 'SUSPENDED', 'TERMINATED')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    user_id BIGINT NOT NULL,
+    service_plan_id BIGINT NOT NULL,
+    
+    -- Внешние ключи
+    CONSTRAINT fk_orders_user FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_orders_service_plan FOREIGN KEY (service_plan_id) 
+        REFERENCES service_plans(id) ON DELETE RESTRICT,
+    
+    -- Индексы
+    INDEX idx_orders_user_id (user_id),
+    INDEX idx_orders_service_plan_id (service_plan_id),
+    INDEX idx_orders_status (status),
+    INDEX idx_orders_created_at (created_at)
+);
+
+-- Таблица servers
+CREATE TABLE servers (
+    id BIGSERIAL PRIMARY KEY,
+    hostname VARCHAR(255) NOT NULL UNIQUE,
+    ip_address VARCHAR(45),  -- IPv6 совместимость
+    os_image VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN ('PENDING', 'ACTIVE', 'SUSPENDED', 'TERMINATED')),
+    user_id BIGINT NOT NULL,
+    service_plan_id BIGINT NOT NULL,
+    
+    -- Внешние ключи
+    CONSTRAINT fk_servers_user FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_servers_service_plan FOREIGN KEY (service_plan_id) 
+        REFERENCES service_plans(id) ON DELETE RESTRICT,
+    
+    -- Индексы
+    CONSTRAINT idx_servers_hostname UNIQUE (hostname),
+    INDEX idx_servers_user_id (user_id),
+    INDEX idx_servers_service_plan_id (service_plan_id),
+    INDEX idx_servers_status (status),
+    INDEX idx_servers_ip_address (ip_address)
+);
+
+-- Дополнительные настройки хранения
+ALTER TABLE servers SET (
+    autovacuum_vacuum_scale_factor = 0.05,
+    autovacuum_analyze_scale_factor = 0.02
+);
+
+-- Представления (View level)
+CREATE VIEW active_servers AS
+SELECT s.*, u.email, u.full_name, sp.name as plan_name
+FROM servers s
+JOIN users u ON s.user_id = u.id
+JOIN service_plans sp ON s.service_plan_id = sp.id
+WHERE s.status = 'ACTIVE' AND u.is_active = true;
+
+CREATE VIEW user_orders_summary AS
+SELECT 
+    u.id as user_id,
+    u.email,
+    COUNT(o.id) as total_orders,
+    SUM(o.price_snapshot) as total_spent,
+    MAX(o.created_at) as last_order_date
+FROM users u
+LEFT JOIN orders o ON u.id = o.user_id
+GROUP BY u.id, u.email;
